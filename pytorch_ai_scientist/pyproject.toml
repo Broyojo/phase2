@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytorch-scientist"
+version = "0.1.0"
+description = "AI Scientist for PyTorch Optimization - Automated research and kernel optimization"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "PyTorch Scientist Team"}
+]
+keywords = ["pytorch", "optimization", "ai-scientist", "helion", "dspy", "research"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.4.0",
+    "dspy-ai>=2.4.0",
+    "exa-py>=1.0.0",
+    "openai>=1.0.0",
+    "anthropic>=0.18.0",
+    "pydantic>=2.0.0",
+    "numpy>=1.24.0",
+    "tqdm>=4.65.0",
+    "rich>=13.0.0",
+    "PyYAML>=6.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "pytest-cov>=4.0.0",
+]
+helion = [
+    "triton>=2.2.0",
+]
+
+[project.scripts]
+pytorch-scientist = "pytorch_scientist.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/pytorch-scientist/pytorch-scientist"
+Documentation = "https://github.com/pytorch-scientist/pytorch-scientist#readme"
+Repository = "https://github.com/pytorch-scientist/pytorch-scientist"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pytorch_scientist*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
