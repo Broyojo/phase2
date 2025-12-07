@@ -123,7 +123,13 @@ class XSearchConfig:
     enabled: bool = True
 
     # Author sources
-    authors: list[str] = field(default_factory=list)
+    authors: list[str] = field(default_factory=lambda: [
+        "iScienceLuvr",
+        "arankomatsuzaki",
+        "rohanpaul_ai",
+        "omarsar0",
+        "_akhaliq",
+    ])
     authors_file: Optional[Path] = None
 
     # Query behavior

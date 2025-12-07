@@ -131,6 +131,15 @@ class OptimizationIdea(BaseModel):
                 values[key] = min(1.0, max(0.0, val))
         return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_config_space(cls, values: dict[str, Any]):  # type: ignore[override]
+        cs = values.get("config_space")
+        if isinstance(cs, list):
+            # Join list items into a readable string
+            values["config_space"] = "; ".join(str(item) for item in cs)
+        return values
+
 
 class NoveltyAssessment(BaseModel):
     """Assessment of an idea's novelty."""

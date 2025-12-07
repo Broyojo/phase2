@@ -51,14 +51,14 @@ class ExaSearchResult:
 
     def to_summary_string(self) -> str:
         """Convert to a summary string for LLM processing."""
+        MAX_TEXT_CHARS = 15000  # keep rich context but avoid eating full model window
         parts = [f"Title: {self.title}"]
         if self.url:
             parts.append(f"URL: {self.url}")
         if self.published_date:
             parts.append(f"Published: {self.published_date}")
         if self.text:
-            # Truncate text to reasonable length
-            text = self.text[:1000] + "..." if len(self.text) > 1000 else self.text
+            text = self.text if len(self.text) <= MAX_TEXT_CHARS else self.text[:MAX_TEXT_CHARS] + "..."
             parts.append(f"Abstract/Summary: {text}")
         if self.highlights:
             parts.append(f"Key points: {'; '.join(self.highlights[:3])}")
