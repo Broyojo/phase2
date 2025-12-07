@@ -29,8 +29,12 @@ class Post:
     created_at: Optional[str] = None
     author_id: Optional[str] = None
     conversation_id: Optional[str] = None
+    edit_history_tweet_ids: Optional[List[str]] = None
     note_tweet: Optional[Dict[str, Any]] = None
     referenced_tweets: Optional[List[Dict[str, Any]]] = None
+    entities: Optional[Dict[str, Any]] = None
+    geo: Optional[Dict[str, Any]] = None
+    public_metrics: Optional[Dict[str, Any]] = None
 
     # Expanded referenced tweet when available (e.g., for RTs)
     expanded_referenced_tweet: Optional[Dict[str, Any]] = field(default=None, repr=False)

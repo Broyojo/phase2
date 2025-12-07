@@ -215,16 +215,17 @@ Return a JSON array of {num_ideas} idea objects."""
             ideas = []
             for data in ideas_data[:num_ideas]:
                 try:
+                    normalized = _normalize_scores(data)
                     idea = Idea(
-                        title=data.get("title", "Untitled"),
-                        description=data.get("description", ""),
-                        novelty=data.get("novelty", ""),
-                        implementation_sketch=data.get("implementation_sketch", ""),
-                        expected_outcome=data.get("expected_outcome", ""),
-                        risk_level=data.get("risk_level", "medium"),
-                        config_space=data.get("config_space", ""),
-                        feasibility_score=float(data.get("feasibility_score", 0.5)),
-                        novelty_score=float(data.get("novelty_score", 0.5)),
+                        title=normalized.get("title", "Untitled"),
+                        description=normalized.get("description", ""),
+                        novelty=normalized.get("novelty", ""),
+                        implementation_sketch=normalized.get("implementation_sketch", ""),
+                        expected_outcome=normalized.get("expected_outcome", ""),
+                        risk_level=normalized.get("risk_level", "medium"),
+                        config_space=normalized.get("config_space", ""),
+                        feasibility_score=float(normalized.get("feasibility_score", 0.5)),
+                        novelty_score=float(normalized.get("novelty_score", 0.5)),
                         source="grok",
                     )
                     ideas.append(idea)
@@ -668,3 +669,18 @@ def generate_ideas(
 
     pipeline = IdeationPipeline(config)
     return pipeline.generate_ideas(literature_summary, check_novelty)
+def _normalize_scores(data: dict[str, Any]) -> dict[str, Any]:
+    """Clamp and scale scores into [0,1] to avoid validation failures."""
+    out = dict(data)
+    for k in ("feasibility_score", "novelty_score"):
+        if k in out:
+            try:
+                val = float(out[k])
+            except Exception:
+                val = 0.5
+            if val > 1:
+                # If model returned 0-10 style, scale down
+                val = val / 10 if val <= 10 else 1.0
+            val = max(0.0, min(1.0, val))
+            out[k] = val
+    return out

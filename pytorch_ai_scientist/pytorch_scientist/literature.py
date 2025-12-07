@@ -224,7 +224,6 @@ class LiteratureDiscovery:
                 "query": query,
                 "num_results": num_results,
                 "type": "auto",
-                "use_autoprompt": self.exa_config.use_autoprompt,
                 "include_domains": self.exa_config.include_domains,
             }
 
@@ -232,10 +231,9 @@ class LiteratureDiscovery:
                 search_kwargs["start_published_date"] = start_date
 
             # Perform search
-            response = self.exa_client.search_and_contents(
+            response = self.exa_client.search(
                 **search_kwargs,
-                text=True,
-                highlights=True,
+                contents={"text": {"maxCharacters": 10000}},
             )
 
             results = [

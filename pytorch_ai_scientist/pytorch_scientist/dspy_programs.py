@@ -15,7 +15,7 @@ import json
 from typing import Any
 
 import dspy
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from pytorch_scientist.config import LLMConfig, LLMProvider
 from pytorch_scientist.utils.logging import get_logger
@@ -115,6 +115,22 @@ class OptimizationIdea(BaseModel):
     feasibility_score: float = Field(description="Feasibility score 0-1", ge=0, le=1)
     novelty_score: float = Field(description="Novelty score 0-1", ge=0, le=1)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _clamp_scores(cls, values: dict[str, Any]):  # type: ignore[override]
+        for key in ("feasibility_score", "novelty_score"):
+            if key in values:
+                try:
+                    val = float(values[key])
+                except Exception:
+                    val = 0.5
+                if val > 1:
+                    val = val / 10 if val <= 10 else 1.0
+                if val < 0:
+                    val = 0.0
+                values[key] = min(1.0, max(0.0, val))
+        return values
+
 
 class NoveltyAssessment(BaseModel):
     """Assessment of an idea's novelty."""
@@ -123,6 +139,24 @@ class NoveltyAssessment(BaseModel):
     similar_works: list[str] = Field(description="Similar existing works")
     differentiation: str = Field(description="What differentiates this idea")
     explanation: str = Field(description="Explanation of the assessment")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_similar(cls, values: dict[str, Any]):  # type: ignore[override]
+        sims = values.get("similar_works")
+        if sims is None:
+            return values
+        normalized: list[str] = []
+        for s in sims:
+            if isinstance(s, dict):
+                title = s.get("title") or s.get("name") or ""
+                summary = s.get("summary") or s.get("description") or ""
+                text = f"{title}: {summary}" if summary else str(title)
+                normalized.append(text)
+            else:
+                normalized.append(str(s))
+        values["similar_works"] = normalized
+        return values
 
 
 class ExperimentSummary(BaseModel):
@@ -299,12 +333,38 @@ class LiteratureSummarizer(dspy.Module):
         except (json.JSONDecodeError, TypeError):
             gaps = [{"description": result.research_gaps, "potential_impact": "unknown", "difficulty": "medium"}]
 
+        def _normalize_gap(g: Any) -> ResearchGap:
+            if not isinstance(g, dict):
+                return ResearchGap(description=str(g), potential_impact="unknown", difficulty="medium")
+
+            desc = g.get("description") or g.get("gap") or g.get("summary") or g.get("problem") or ""
+            impact = g.get("potential_impact") or g.get("impact") or g.get("potentialImpact") or "unknown"
+            diff = g.get("difficulty") or "medium"
+
+            return ResearchGap(
+                description=str(desc),
+                potential_impact=str(impact),
+                difficulty=str(diff),
+            )
+
+        def _normalize_list(items: Any, key: str) -> list[str]:
+            if not isinstance(items, list):
+                items = [items]
+            out: list[str] = []
+            for it in items:
+                if isinstance(it, dict):
+                    val = it.get(key) or it.get("description") or it.get("summary") or it.get("title") or ""
+                    out.append(str(val))
+                else:
+                    out.append(str(it))
+            return out
+
         return LiteratureSummaryOutput(
             key_papers=[Paper(**p) if isinstance(p, dict) else Paper(title=str(p), summary="", relevance="") for p in key_papers],
-            open_problems=open_problems if isinstance(open_problems, list) else [open_problems],
-            unexplored_directions=unexplored if isinstance(unexplored, list) else [unexplored],
-            recent_trends=trends if isinstance(trends, list) else [trends],
-            research_gaps=[ResearchGap(**g) if isinstance(g, dict) else ResearchGap(description=str(g), potential_impact="unknown", difficulty="medium") for g in gaps],
+            open_problems=_normalize_list(open_problems, "problem"),
+            unexplored_directions=_normalize_list(unexplored, "direction"),
+            recent_trends=_normalize_list(trends, "trend"),
+            research_gaps=[_normalize_gap(g) for g in gaps],
         )
 
 
