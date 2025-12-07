@@ -15,6 +15,7 @@ from pytorch_scientist.config import (
     SearchConfig,
     SearchStrategy,
     TargetOperation,
+    XSearchConfig,
 )
 
 
@@ -117,3 +118,18 @@ class TestResearchConfig:
         config = ResearchConfig.from_env()
         assert config.llm.grok_api_key == "test-key"
         assert config.exa.api_key == "test-exa-key"
+
+
+class TestXSearchConfig:
+    """Tests for XSearchConfig."""
+
+    def test_api_key_from_env(self, monkeypatch):
+        monkeypatch.setenv("X_API_KEY", "test-x-key")
+        cfg = XSearchConfig()
+        assert cfg.api_key == "test-x-key"
+
+    def test_resolved_authors_from_file(self, tmp_path):
+        file = tmp_path / "authors.txt"
+        file.write_text("@alice\nbob\n@alice\n")
+        cfg = XSearchConfig(authors=["carol"], authors_file=file)
+        assert cfg.resolved_authors() == ["carol", "alice", "bob"]

@@ -57,6 +57,9 @@ Set the following environment variables:
 # Required for literature search
 export EXA_API_KEY="your-exa-api-key"
 
+# Optional: X posts enrichment
+export X_API_KEY="your-x-api-key"
+
 # Required for LLM calls (choose one)
 export XAI_API_KEY="your-grok-api-key"       # For Grok
 export ANTHROPIC_API_KEY="your-anthropic-key" # For Claude

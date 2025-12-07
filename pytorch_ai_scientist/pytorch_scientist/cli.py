@@ -19,7 +19,11 @@ from pytorch_scientist.config import (
     SearchStrategy,
     TargetOperation,
 )
-from pytorch_scientist.pipeline import quick_demo, run_discovery_only, run_pytorch_scientist
+from pytorch_scientist.pipeline import (
+    quick_demo,
+    run_discovery_only,
+    run_pytorch_scientist,
+)
 
 
 def main() -> int:
@@ -160,9 +164,45 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
         help="Output directory",
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Verbose output",
+    )
+    parser.add_argument(
+        "--x-enabled",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable fetching X posts to augment literature (default: enabled)",
+    )
+    parser.add_argument(
+        "--x-authors",
+        type=str,
+        default=None,
+        help="Comma-separated X handles to search (without @). Overrides authors_file if provided.",
+    )
+    parser.add_argument(
+        "--x-authors-file",
+        type=Path,
+        default=None,
+        help="Path to newline-separated X handles file (without @).",
+    )
+    parser.add_argument(
+        "--x-query",
+        type=str,
+        default=None,
+        help="Keyword filter for X search (defaults to domain).",
+    )
+    parser.add_argument(
+        "--x-max-posts",
+        type=int,
+        default=None,
+        help="Max tweets to fetch from X (default 50).",
+    )
+    parser.add_argument(
+        "--x-no-retweets",
+        action="store_true",
+        help="Exclude retweets from X search results.",
     )
 
 
@@ -170,10 +210,10 @@ def _get_llm_config(args: argparse.Namespace) -> LLMConfig:
     """Create LLM config from args."""
     provider = LLMProvider(args.llm_provider)
     model = args.llm_model or {
-        LLMProvider.GROK: "grok-3-mini",
+        LLMProvider.GROK: "grok-4-1-fast-reasoning",
         LLMProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",
         LLMProvider.OPENAI: "gpt-4o",
-    }.get(provider, "grok-3-mini")
+    }.get(provider, "grok-4-1-fast-reasoning")
 
     return LLMConfig(provider=provider, model=model)
 
@@ -191,6 +231,19 @@ def _run_full(args: argparse.Namespace) -> int:
     config.search.strategy = SearchStrategy(args.search_strategy)
     config.experiment.target_operation = TargetOperation(args.operation)
     config.experiment.device = args.device
+
+    # X config
+    config.x.enabled = args.x_enabled
+    if args.x_authors:
+        config.x.authors = [
+            h.strip().lstrip("@") for h in args.x_authors.split(",") if h.strip()
+        ]
+    config.x.authors_file = args.x_authors_file
+    if args.x_query:
+        config.x.query = args.x_query
+    if args.x_max_posts:
+        config.x.max_results = args.x_max_posts
+    config.x.include_retweets = not args.x_no_retweets
 
     result = run_pytorch_scientist(config)
 
@@ -212,6 +265,18 @@ def _run_discover(args: argparse.Namespace) -> int:
         log_level="DEBUG" if args.verbose else "INFO",
     )
     config.ideation.max_ideas = args.max_ideas
+
+    config.x.enabled = args.x_enabled
+    if args.x_authors:
+        config.x.authors = [
+            h.strip().lstrip("@") for h in args.x_authors.split(",") if h.strip()
+        ]
+    config.x.authors_file = args.x_authors_file
+    if args.x_query:
+        config.x.query = args.x_query
+    if args.x_max_posts:
+        config.x.max_results = args.x_max_posts
+    config.x.include_retweets = not args.x_no_retweets
 
     result = run_discovery_only(config)
 

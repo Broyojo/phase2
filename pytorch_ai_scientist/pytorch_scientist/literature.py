@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pytorch_scientist.config import ExaConfig, LLMConfig, ResearchConfig
+from pytorch_scientist.config import ExaConfig, LLMConfig, ResearchConfig, XSearchConfig
 from pytorch_scientist.dspy_programs import (
     LiteratureSummarizer,
     LiteratureSummaryOutput,
@@ -18,6 +18,7 @@ from pytorch_scientist.dspy_programs import (
     ResearchGap,
     configure_dspy_lm,
 )
+from pytorch_scientist.social import ThreadSummary, get_threads_for_authors
 from pytorch_scientist.utils.logging import get_logger
 
 logger = get_logger("literature")
@@ -77,6 +78,7 @@ class LiteratureSummary:
     recent_trends: list[str]
     research_gaps: list[ResearchGap]
     raw_search_results: list[ExaSearchResult] = field(default_factory=list)
+    x_threads: list[ThreadSummary] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -88,6 +90,8 @@ class LiteratureSummary:
             "recent_trends": self.recent_trends,
             "research_gaps": [g.model_dump() for g in self.research_gaps],
             "num_papers_analyzed": len(self.raw_search_results),
+            "num_x_threads": len(self.x_threads),
+            "x_threads": [t.to_dict() for t in self.x_threads],
         }
 
     def to_summary_string(self) -> str:
@@ -121,6 +125,14 @@ class LiteratureSummary:
         for trend in self.recent_trends[:5]:
             parts.append(f"  - {trend}")
 
+        if self.x_threads:
+            parts.extend([
+                "",
+                "Recent X Threads:",
+            ])
+            for thread in self.x_threads:
+                parts.append(f"---\n{thread.to_summary_string()}")
+
         return "\n".join(parts)
 
 
@@ -146,6 +158,7 @@ class LiteratureDiscovery:
         self,
         exa_config: ExaConfig | None = None,
         llm_config: LLMConfig | None = None,
+        x_config: XSearchConfig | None = None,
     ):
         """
         Initialize literature discovery.
@@ -156,6 +169,7 @@ class LiteratureDiscovery:
         """
         self.exa_config = exa_config or ExaConfig()
         self.llm_config = llm_config or LLMConfig()
+        self.x_config = x_config or XSearchConfig()
 
         # Initialize Exa client
         self._exa_client = None
@@ -351,6 +365,24 @@ class LiteratureDiscovery:
         # Analyze gaps
         analysis = self.find_research_gaps(domain, unique_results)
 
+        # Fetch X threads if enabled
+        x_threads: list[ThreadSummary] = []
+        if self.x_config.enabled:
+            authors = self.x_config.resolved_authors()
+            query = self.x_config.query or domain
+            if self.x_config.api_key or authors:
+                try:
+                    x_threads = get_threads_for_authors(
+                        authors,
+                        query=query,
+                        x_config=self.x_config,
+                    )
+                    logger.info(f"Found {len(x_threads)} X threads")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"X search failed, continuing without: {e}")
+            else:
+                logger.info("X search skipped: no API key/authors configured")
+
         # Create complete summary
         summary = LiteratureSummary(
             domain=domain,
@@ -360,6 +392,7 @@ class LiteratureDiscovery:
             recent_trends=analysis.recent_trends,
             research_gaps=analysis.research_gaps,
             raw_search_results=unique_results,
+            x_threads=x_threads,
         )
 
         logger.info(
@@ -504,6 +537,7 @@ def discover(
     discovery = LiteratureDiscovery(
         exa_config=config.exa,
         llm_config=config.llm,
+        x_config=config.x,
     )
 
     return discovery.discover(domain)

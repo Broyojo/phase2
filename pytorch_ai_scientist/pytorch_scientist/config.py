@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 
 class LLMProvider(Enum):
@@ -116,6 +116,47 @@ class ExaConfig:
 
 
 @dataclass
+class XSearchConfig:
+    """Configuration for X (Twitter) search via xdk."""
+
+    api_key: Optional[str] = field(default=None, repr=False)
+    enabled: bool = True
+
+    # Author sources
+    authors: list[str] = field(default_factory=list)
+    authors_file: Optional[Path] = None
+
+    # Query behavior
+    query: str = ""
+    include_retweets: bool = True
+    max_results: int = 50
+    use_full_archive: bool = False
+    start_date: Optional[str] = None  # YYYY-MM-DD
+
+    def __post_init__(self):
+        """Load API key from environment if not provided."""
+        self.api_key = self.api_key or os.getenv("X_API_KEY")
+
+    def resolved_authors(self) -> list[str]:
+        """Return combined authors list, including those from a file if provided."""
+        authors = list(self.authors)
+        if self.authors_file and Path(self.authors_file).exists():
+            with open(self.authors_file, "r") as f:
+                for line in f:
+                    handle = line.strip().lstrip("@")
+                    if handle:
+                        authors.append(handle)
+        # Deduplicate while preserving order
+        seen = set()
+        unique: list[str] = []
+        for a in authors:
+            if a not in seen:
+                seen.add(a)
+                unique.append(a)
+        return unique
+
+
+@dataclass
 class SearchConfig:
     """Configuration for config search."""
 
@@ -199,6 +240,7 @@ class ResearchConfig:
     # Sub-configurations
     llm: LLMConfig = field(default_factory=LLMConfig)
     exa: ExaConfig = field(default_factory=ExaConfig)
+    x: XSearchConfig = field(default_factory=XSearchConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
     experiment: ExperimentConfig = field(default_factory=ExperimentConfig)
     ideation: IdeationConfig = field(default_factory=IdeationConfig)
@@ -233,6 +275,7 @@ class ResearchConfig:
         return cls(
             llm=LLMConfig(),
             exa=ExaConfig(),
+            x=XSearchConfig(),
         )
 
 

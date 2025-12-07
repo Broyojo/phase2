@@ -361,6 +361,14 @@ class AIScientistIdeation:
             "- torch.compile modes (default, reduce-overhead, max-autotune)",
         ])
 
+        if literature_summary.x_threads:
+            context_parts.extend([
+                "",
+                "## Recent X Threads (full text)",
+            ])
+            for thread in literature_summary.x_threads:
+                context_parts.append(thread.to_summary_string())
+
         return "\n".join(context_parts)
 
     def generate_ideas(
